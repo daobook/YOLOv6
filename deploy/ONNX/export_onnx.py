@@ -45,7 +45,10 @@ if __name__ == '__main__':
     # Check device
     cuda = args.device != 'cpu' and torch.cuda.is_available()
     device = torch.device(f'cuda:{args.device}' if cuda else 'cpu')
-    assert not (device.type == 'cpu' and args.half), '--half only compatible with GPU export, i.e. use --device 0'
+    assert (
+        device.type != 'cpu' or not args.half
+    ), '--half only compatible with GPU export, i.e. use --device 0'
+
     # Load PyTorch model
     model = load_checkpoint(args.weights, map_location=device, inplace=True, fuse=True)  # load FP32 model
     for layer in model.modules():
@@ -67,10 +70,6 @@ if __name__ == '__main__':
     dynamic_axes = None
     if args.dynamic_batch:
         args.batch_size = 'batch'
-        dynamic_axes = {
-            'images' :{
-                0:'batch',
-            },}
         if args.end2end:
             output_axes = {
                 'num_dets': {0: 'batch'},
@@ -82,8 +81,11 @@ if __name__ == '__main__':
             output_axes = {
                 'outputs': {0: 'batch'},
             }
-        dynamic_axes.update(output_axes)
-
+        dynamic_axes = {
+            'images': {
+                0: 'batch',
+            },
+        } | output_axes
 
     if args.end2end:
         from yolov6.models.end2end import End2End
@@ -134,16 +136,15 @@ if __name__ == '__main__':
 
     # Finish
     LOGGER.info('\nExport complete (%.2fs)' % (time.time() - t))
-    if args.end2end:
-        if not args.ort:
-            info = f'trtexec --onnx={export_file} --saveEngine={export_file.replace(".onnx",".engine")}'
-            if args.dynamic_batch:
-                LOGGER.info('Dynamic batch export should define min/opt/max batchsize\n'+
-                            'We set min/opt/max = 1/16/32 default!')
-                wandh = 'x'.join(list(map(str,args.img_size)))
-                info += (f' --minShapes=images:1x3x{wandh}'+
-                f' --optShapes=images:16x3x{wandh}'+
-                f' --maxShapes=images:32x3x{wandh}'+
-                f' --shapes=images:16x3x{wandh}')
-            LOGGER.info('\nYou can export tensorrt engine use trtexec tools.\nCommand is:')
-            LOGGER.info(info)
+    if args.end2end and not args.ort:
+        info = f'trtexec --onnx={export_file} --saveEngine={export_file.replace(".onnx",".engine")}'
+        if args.dynamic_batch:
+            LOGGER.info('Dynamic batch export should define min/opt/max batchsize\n'+
+                        'We set min/opt/max = 1/16/32 default!')
+            wandh = 'x'.join(list(map(str,args.img_size)))
+            info += (f' --minShapes=images:1x3x{wandh}'+
+            f' --optShapes=images:16x3x{wandh}'+
+            f' --maxShapes=images:32x3x{wandh}'+
+            f' --shapes=images:16x3x{wandh}')
+        LOGGER.info('\nYou can export tensorrt engine use trtexec tools.\nCommand is:')
+        LOGGER.info(info)

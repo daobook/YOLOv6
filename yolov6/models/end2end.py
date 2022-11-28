@@ -141,7 +141,7 @@ class ONNX_ORT(nn.Module):
     '''onnx module with ONNX-Runtime NMS operation.'''
     def __init__(self, max_obj=100, iou_thres=0.45, score_thres=0.25, device=None):
         super().__init__()
-        self.device = device if device else torch.device("cpu")
+        self.device = device or torch.device("cpu")
         self.max_obj = torch.tensor([max_obj]).to(device)
         self.iou_threshold = torch.tensor([iou_thres]).to(device)
         self.score_threshold = torch.tensor([score_thres]).to(device)
@@ -192,7 +192,7 @@ class ONNX_TRT7(nn.Module):
     '''onnx module with TensorRT NMS operation.'''
     def __init__(self, max_obj=100, iou_thres=0.45, score_thres=0.25, device=None):
         super().__init__()
-        self.device = device if device else torch.device('cpu')
+        self.device = device or torch.device('cpu')
         self.shareLocation = 1
         self.backgroundLabelId = -1
         self.numClasses = 80
@@ -236,7 +236,7 @@ class ONNX_TRT8(nn.Module):
     '''onnx module with TensorRT NMS operation.'''
     def __init__(self, max_obj=100, iou_thres=0.45, score_thres=0.25, device=None):
         super().__init__()
-        self.device = device if device else torch.device('cpu')
+        self.device = device or torch.device('cpu')
         self.background_class = -1,
         self.box_coding = 1,
         self.iou_threshold = iou_thres
@@ -261,7 +261,7 @@ class End2End(nn.Module):
     '''export onnx or tensorrt model with NMS operation.'''
     def __init__(self, model, max_obj=100, iou_thres=0.45, score_thres=0.25, device=None, ort=False,  trt_version=8, with_preprocess=False):
         super().__init__()
-        device = device if device else torch.device('cpu')
+        device = device or torch.device('cpu')
         self.with_preprocess = with_preprocess
         self.model = model.to(device)
         TRT = ONNX_TRT8 if trt_version >= 8  else ONNX_TRT7
@@ -274,9 +274,5 @@ class End2End(nn.Module):
             x = x[:,[2,1,0],...]
             x = x * (1/255)
         x = self.model(x)
-        if isinstance(x, list):
-            x = x[0]
-        else:
-            x = x
-        x = self.end2end(x)
-        return x
+        x = x[0] if isinstance(x, list) else x
+        return self.end2end(x)

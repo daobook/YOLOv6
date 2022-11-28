@@ -58,7 +58,7 @@ class ComputeLoss:
 
         feats, pred_scores, pred_distri = outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
-               generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
+                   generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
 
         assert pred_scores.type() == pred_distri.type()
         gt_bboxes_scale = torch.full((1,4), self.ori_img_size).type_as(pred_scores)
@@ -77,7 +77,7 @@ class ComputeLoss:
         try:
             if epoch_num < self.warmup_epoch:
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.warmup_assigner(
+                        self.warmup_assigner(
                         anchors,
                         n_anchors_list,
                         gt_labels,
@@ -86,7 +86,7 @@ class ComputeLoss:
                         pred_bboxes.detach() * stride_tensor)
             else:
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.formal_assigner(
+                        self.formal_assigner(
                         pred_scores.detach(),
                         pred_bboxes.detach() * stride_tensor,
                         anchor_points,
@@ -112,7 +112,7 @@ class ComputeLoss:
                 _stride_tensor = stride_tensor.cpu().float()
 
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.warmup_assigner(
+                        self.warmup_assigner(
                         _anchors,
                         _n_anchors_list,
                         _gt_labels,
@@ -130,7 +130,7 @@ class ComputeLoss:
                 _stride_tensor = stride_tensor.cpu().float()
 
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.formal_assigner(
+                        self.formal_assigner(
                         _pred_scores,
                         _pred_bboxes * _stride_tensor,
                         _anchor_points,
@@ -165,17 +165,17 @@ class ComputeLoss:
                                             target_scores, target_scores_sum, fg_mask)
 
         loss = self.loss_weight['class'] * loss_cls + \
-               self.loss_weight['iou'] * loss_iou + \
-               self.loss_weight['dfl'] * loss_dfl
+                   self.loss_weight['iou'] * loss_iou + \
+                   self.loss_weight['dfl'] * loss_dfl
 
         return loss, \
-            torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
+                torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
                          (self.loss_weight['dfl'] * loss_dfl).unsqueeze(0),
                          (self.loss_weight['class'] * loss_cls).unsqueeze(0))).detach()
 
     def preprocess(self, targets, batch_size, scale_tensor):
         targets_list = np.zeros((batch_size, 1, 5)).tolist()
-        for i, item in enumerate(targets.cpu().numpy().tolist()):
+        for item in targets.cpu().numpy().tolist():
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
         targets = torch.from_numpy(np.array(list(map(lambda l:l + [[-1,0,0,0,0]]*(max_len - len(l)), targets_list)))[:,1:,:]).to(targets.device)
@@ -231,7 +231,7 @@ class BboxLoss(nn.Module):
                 loss_iou = loss_iou.sum()
             else:
                 loss_iou = loss_iou.sum() / target_scores_sum
-               
+
             # dfl loss
             if self.use_dfl:
                 dist_mask = fg_mask.unsqueeze(-1).repeat(

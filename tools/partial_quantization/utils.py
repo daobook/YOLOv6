@@ -73,8 +73,8 @@ def concat_quant_amax_fuse(ops_list):
 
 
 def quant_sensitivity_load(file):
-    assert os.path.exists(file), print("File {} does not exist".format(file))
-    quant_sensitivity = list()
+    assert os.path.exists(file), print(f"File {file} does not exist")
+    quant_sensitivity = []
     with open(file, 'r') as qfile:
         lines = qfile.readlines()
         for line in lines:
@@ -88,5 +88,12 @@ def quant_sensitivity_save(quant_sensitivity, file):
     with open(file, 'w') as qfile:
         for item in quant_sensitivity:
             name, mAP1, mAP2 = item
-            line = name + " " + "{:0.4f}".format(mAP1) + " " + "{:0.4f}".format(mAP2) + "\n"
+            line = (
+                f"{name} "
+                + "{:0.4f}".format(mAP1)
+                + " "
+                + "{:0.4f}".format(mAP2)
+                + "\n"
+            )
+
             qfile.write(line)

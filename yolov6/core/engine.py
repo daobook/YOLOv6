@@ -54,7 +54,7 @@ class Trainer:
             self.quant_setup(model, cfg, device)
         if cfg.training_mode == 'repopt':
             scales = self.load_scale_from_pretrained_models(cfg, device)
-            reinit = False if cfg.model.pretrained is not None else True
+            reinit = cfg.model.pretrained is None
             self.optimizer = RepVGGOptimizer(model, scales, args, cfg, reinit=reinit)
         else:
             self.optimizer = self.get_optimizer(args, cfg, model)
@@ -148,44 +148,47 @@ class Trainer:
         self.update_optimizer()
 
     def eval_and_save(self):
+        if not self.main_process:
+            return
+        self.ema.update_attr(self.model, include=['nc', 'names', 'stride']) # update attributes for ema model
         remaining_epochs = self.max_epoch - self.epoch
         eval_interval = self.args.eval_interval if remaining_epochs > self.args.heavy_eval_range else 1
         is_val_epoch = (not self.args.eval_final_only or (remaining_epochs == 1)) and (self.epoch % eval_interval == 0)
-        if self.main_process:
-            self.ema.update_attr(self.model, include=['nc', 'names', 'stride']) # update attributes for ema model
-            if is_val_epoch:
-                self.eval_model()
-                self.ap = self.evaluate_results[1]
-                self.best_ap = max(self.ap, self.best_ap)
-            # save ckpt
-            ckpt = {
-                    'model': deepcopy(de_parallel(self.model)).half(),
-                    'ema': deepcopy(self.ema.ema).half(),
-                    'updates': self.ema.updates,
-                    'optimizer': self.optimizer.state_dict(),
-                    'epoch': self.epoch,
-                    }
+        if is_val_epoch:
+            self.eval_model()
+            self.ap = self.evaluate_results[1]
+            self.best_ap = max(self.ap, self.best_ap)
+        # save ckpt
+        ckpt = {
+                'model': deepcopy(de_parallel(self.model)).half(),
+                'ema': deepcopy(self.ema.ema).half(),
+                'updates': self.ema.updates,
+                'optimizer': self.optimizer.state_dict(),
+                'epoch': self.epoch,
+                }
 
-            save_ckpt_dir = osp.join(self.save_dir, 'weights')
-            save_checkpoint(ckpt, (is_val_epoch) and (self.ap == self.best_ap), save_ckpt_dir, model_name='last_ckpt')
-            if self.epoch >= self.max_epoch - self.args.save_ckpt_on_last_n_epoch:
-                save_checkpoint(ckpt, False, save_ckpt_dir, model_name=f'{self.epoch}_ckpt')
+        save_ckpt_dir = osp.join(self.save_dir, 'weights')
+        save_checkpoint(ckpt, (is_val_epoch) and (self.ap == self.best_ap), save_ckpt_dir, model_name='last_ckpt')
+        if self.epoch >= self.max_epoch - self.args.save_ckpt_on_last_n_epoch:
+            save_checkpoint(ckpt, False, save_ckpt_dir, model_name=f'{self.epoch}_ckpt')
 
             #default save best ap ckpt in stop strong aug epochs
-            if self.epoch >= self.max_epoch - self.args.stop_aug_last_n_epoch:
-                if self.best_stop_strong_aug_ap < self.ap:
-                    self.best_stop_strong_aug_ap = max(self.ap, self.best_stop_strong_aug_ap)
-                    save_checkpoint(ckpt, False, save_ckpt_dir, model_name='best_stop_aug_ckpt')
+        if (
+            self.epoch >= self.max_epoch - self.args.stop_aug_last_n_epoch
+            and self.best_stop_strong_aug_ap < self.ap
+        ):
+            self.best_stop_strong_aug_ap = max(self.ap, self.best_stop_strong_aug_ap)
+            save_checkpoint(ckpt, False, save_ckpt_dir, model_name='best_stop_aug_ckpt')
 
-            del ckpt
-            # log for learning rate
-            lr = [x['lr'] for x in self.optimizer.param_groups]
-            self.evaluate_results = list(self.evaluate_results) + lr
+        del ckpt
+        # log for learning rate
+        lr = [x['lr'] for x in self.optimizer.param_groups]
+        self.evaluate_results = list(self.evaluate_results) + lr
 
-            # log for tensorboard
-            write_tblog(self.tblogger, self.epoch, self.evaluate_results, self.mean_loss)
-            # save validation predictions to tensorboard
-            write_tbimg(self.tblogger, self.vis_imgs_list, self.epoch, type='val')
+        # log for tensorboard
+        write_tblog(self.tblogger, self.epoch, self.evaluate_results, self.mean_loss)
+        # save validation predictions to tensorboard
+        write_tbimg(self.tblogger, self.vis_imgs_list, self.epoch, type='val')
 
     def eval_model(self):
         if not hasattr(self.cfg, "eval_params"):
@@ -320,21 +323,35 @@ class Trainer:
         # check data
         nc = int(data_dict['nc'])
         class_names = data_dict['names']
-        assert len(class_names) == nc, f'the length of class names does not match the number of classes defined'
+        assert (
+            len(class_names) == nc
+        ), 'the length of class names does not match the number of classes defined'
+
         grid_size = max(int(max(cfg.model.head.strides)), 32)
         # create train dataloader
         train_loader = create_dataloader(train_path, args.img_size, args.batch_size // args.world_size, grid_size,
                                          hyp=dict(cfg.data_aug), augment=True, rect=False, rank=args.local_rank,
                                          workers=args.workers, shuffle=True, check_images=args.check_images,
                                          check_labels=args.check_labels, data_dict=data_dict, task='train')[0]
-        # create val dataloader
-        val_loader = None
         if args.rank in [-1, 0]:
-            val_loader = create_dataloader(val_path, args.img_size, args.batch_size // args.world_size * 2, grid_size,
-                                           hyp=dict(cfg.data_aug), rect=True, rank=-1, pad=0.5,
-                                           workers=args.workers, check_images=args.check_images,
-                                           check_labels=args.check_labels, data_dict=data_dict, task='val')[0]
+            val_loader = create_dataloader(
+                val_path,
+                args.img_size,
+                args.batch_size // args.world_size * 2,
+                grid_size,
+                hyp=dict(cfg.data_aug),
+                rect=True,
+                rank=-1,
+                pad=0.5,
+                workers=args.workers,
+                check_images=args.check_images,
+                check_labels=args.check_labels,
+                data_dict=data_dict,
+                task='val',
+            )[0]
 
+        else:
+            val_loader = None
         return train_loader, val_loader
 
     @staticmethod
@@ -345,21 +362,19 @@ class Trainer:
 
     def get_model(self, args, cfg, nc, device):
         model = build_model(cfg, nc, device)
-        weights = cfg.model.pretrained
-        if weights:  # finetune if pretrained model is set
+        if weights := cfg.model.pretrained:
             LOGGER.info(f'Loading state_dict from {weights} for fine-tuning...')
             model = load_state_dict(weights, model, map_location=device)
 
-        LOGGER.info('Model: {}'.format(model))
+        LOGGER.info(f'Model: {model}')
         return model
 
     def get_teacher_model(self, args,cfg,nc, device):
         model = build_model(cfg, nc, device)
-        weights = args.teacher_model_path
-        if weights:  # finetune if pretrained model is set
+        if weights := args.teacher_model_path:
             LOGGER.info(f'Loading state_dict from {weights} for teacher')
             model = load_state_dict(weights, model, map_location=device)
-        LOGGER.info('Model: {}'.format(model))
+        LOGGER.info(f'Model: {model}')
         # Do not update running means and running vars
         for module in model.modules():
             if isinstance(module, torch.nn.BatchNorm2d):
@@ -397,8 +412,7 @@ class Trainer:
         accumulate = max(1, round(64 / args.batch_size))
         cfg.solver.weight_decay *= args.batch_size * accumulate / 64
         cfg.solver.lr0 *= args.batch_size / (self.world_size * 32) # rescale lr0 related to batchsize
-        optimizer = build_optimizer(cfg, model)
-        return optimizer
+        return build_optimizer(cfg, model)
 
     @staticmethod
     def get_lr_scheduler(args, cfg, optimizer):
@@ -453,7 +467,7 @@ class Trainer:
                 for j, box in enumerate(boxes.T.tolist()):
                     box = [int(k) for k in box]
                     cls = classes[j]
-                    color = tuple([int(x) for x in self.color[cls]])
+                    color = tuple(self.color[cls])
                     cls = self.data_dict['names'][cls] if self.data_dict['names'] else cls
                     if labels:
                         label = f'{cls}'
@@ -477,8 +491,24 @@ class Trainer:
                 # draw top n bbox
                 if box_score < vis_conf or bbox_idx > vis_max_box_num:
                     break
-                cv2.rectangle(ori_img, (x_tl, y_tl), (x_br, y_br), tuple([int(x) for x in self.color[cls_id]]), thickness=1)
-                cv2.putText(ori_img, f"{self.data_dict['names'][cls_id]}: {box_score:.2f}", (x_tl, y_tl - 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, tuple([int(x) for x in self.color[cls_id]]), thickness=1)
+                cv2.rectangle(
+                    ori_img,
+                    (x_tl, y_tl),
+                    (x_br, y_br),
+                    tuple(int(x) for x in self.color[cls_id]),
+                    thickness=1,
+                )
+
+                cv2.putText(
+                    ori_img,
+                    f"{self.data_dict['names'][cls_id]}: {box_score:.2f}",
+                    (x_tl, y_tl - 10),
+                    cv2.FONT_HERSHEY_COMPLEX,
+                    0.5,
+                    tuple(int(x) for x in self.color[cls_id]),
+                    thickness=1,
+                )
+
             self.vis_imgs_list.append(torch.from_numpy(ori_img[:, :, ::-1].copy()))
 
 

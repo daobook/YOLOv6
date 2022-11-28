@@ -72,9 +72,9 @@ class ComputeLoss:
         feats, pred_scores, pred_distri = outputs
         t_feats, t_pred_scores, t_pred_distri = t_outputs
         anchors, anchor_points, n_anchors_list, stride_tensor = \
-               generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
+                   generate_anchors(feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
         t_anchors, t_anchor_points, t_n_anchors_list, t_stride_tensor = \
-               generate_anchors(t_feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
+                   generate_anchors(t_feats, self.fpn_strides, self.grid_cell_size, self.grid_cell_offset, device=feats[0].device)
 
         assert pred_scores.type() == pred_distri.type()
         gt_bboxes_scale = torch.full((1,4), self.ori_img_size).type_as(pred_scores)
@@ -95,7 +95,7 @@ class ComputeLoss:
         try:
             if epoch_num < self.warmup_epoch:
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.warmup_assigner(
+                        self.warmup_assigner(
                         anchors,
                         n_anchors_list,
                         gt_labels,
@@ -104,7 +104,7 @@ class ComputeLoss:
                         pred_bboxes.detach() * stride_tensor)
             else:
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.formal_assigner(
+                        self.formal_assigner(
                         pred_scores.detach(),
                         pred_bboxes.detach() * stride_tensor,
                         anchor_points,
@@ -130,7 +130,7 @@ class ComputeLoss:
                 _stride_tensor = stride_tensor.cpu().float()
 
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.warmup_assigner(
+                        self.warmup_assigner(
                         _anchors,
                         _n_anchors_list,
                         _gt_labels,
@@ -148,7 +148,7 @@ class ComputeLoss:
                 _stride_tensor = stride_tensor.cpu().float()
 
                 target_labels, target_bboxes, target_scores, fg_mask = \
-                    self.formal_assigner(
+                        self.formal_assigner(
                         _pred_scores,
                         _pred_bboxes * _stride_tensor,
                         _anchor_points,
@@ -198,12 +198,12 @@ class ComputeLoss:
         loss_cls_all = loss_cls + d_loss_cls * self.distill_weight['class']
         loss_dfl_all = loss_dfl + d_loss_dfl * self.distill_weight['dfl']
         loss = self.loss_weight['class'] * loss_cls_all + \
-               self.loss_weight['iou'] * loss_iou + \
-               self.loss_weight['dfl'] * loss_dfl_all + \
-               self.loss_weight['cwd'] * d_loss_cw
+                   self.loss_weight['iou'] * loss_iou + \
+                   self.loss_weight['dfl'] * loss_dfl_all + \
+                   self.loss_weight['cwd'] * d_loss_cw
 
         return loss, \
-            torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
+                torch.cat(((self.loss_weight['iou'] * loss_iou).unsqueeze(0),
                          (self.loss_weight['dfl'] * loss_dfl_all).unsqueeze(0),
                          (self.loss_weight['class'] * loss_cls_all).unsqueeze(0),
                          (self.loss_weight['cwd'] * d_loss_cw).unsqueeze(0))).detach()
@@ -245,7 +245,7 @@ class ComputeLoss:
 
     def preprocess(self, targets, batch_size, scale_tensor):
         targets_list = np.zeros((batch_size, 1, 5)).tolist()
-        for i, item in enumerate(targets.cpu().numpy().tolist()):
+        for item in targets.cpu().numpy().tolist():
             targets_list[int(item[0])].append(item[1:])
         max_len = max((len(l) for l in targets_list))
         targets = torch.from_numpy(np.array(list(map(lambda l:l + [[-1,0,0,0,0]]*(max_len - len(l)), targets_list)))[:,1:,:]).to(targets.device)

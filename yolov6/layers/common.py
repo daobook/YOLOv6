@@ -208,11 +208,7 @@ class RepVGGBlock(nn.Module):
         if hasattr(self, 'rbr_reparam'):
             return self.nonlinearity(self.se(self.rbr_reparam(inputs)))
 
-        if self.rbr_identity is None:
-            id_out = 0
-        else:
-            id_out = self.rbr_identity(inputs)
-
+        id_out = 0 if self.rbr_identity is None else self.rbr_identity(inputs)
         return self.nonlinearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
     def get_equivalent_kernel_bias(self):
@@ -291,8 +287,7 @@ class RealVGGBlock(nn.Module):
             self.se = nn.Identity()
 
     def forward(self, inputs):
-        out = self.relu(self.se(self.bn(self.conv(inputs))))
-        return out
+        return self.relu(self.se(self.bn(self.conv(inputs))))
 
 
 class ScaleLayer(torch.nn.Module):
@@ -390,14 +385,8 @@ class BottleRep(nn.Module):
         super().__init__()
         self.conv1 = basic_block(in_channels, out_channels)
         self.conv2 = basic_block(out_channels, out_channels)
-        if in_channels != out_channels:
-            self.shortcut = False
-        else:
-            self.shortcut = True
-        if weight:
-            self.alpha = Parameter(torch.ones(1))
-        else:
-            self.alpha = 1.0
+        self.shortcut = in_channels == out_channels
+        self.alpha = Parameter(torch.ones(1)) if weight else 1.0
 
     def forward(self, x):
         outputs = self.conv1(x)
@@ -463,4 +452,4 @@ def get_block(mode):
     elif mode == 'conv_silu':
         return ConvWrapper
     else:
-        raise NotImplementedError("Undefied Repblock choice for mode {}".format(mode))
+        raise NotImplementedError(f"Undefied Repblock choice for mode {mode}")
