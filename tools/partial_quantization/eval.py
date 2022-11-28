@@ -25,7 +25,7 @@ class EvalerWrapper(object):
 
         # init
         val = Evaler(data, batch_size, img_size, conf_thres, \
-                     iou_thres, device, half, save_dir)
+                         iou_thres, device, half, save_dir)
         val.stride = eval_cfg['stride']
         dataloader = val.init_data(dataloader, task)
 

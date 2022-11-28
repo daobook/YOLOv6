@@ -94,11 +94,10 @@ class EfficientRep(nn.Module):
 
     def forward(self, x):
 
-        outputs = []
         x = self.stem(x)
         x = self.ERBlock_2(x)
         x = self.ERBlock_3(x)
-        outputs.append(x)
+        outputs = [x]
         x = self.ERBlock_4(x)
         outputs.append(x)
         x = self.ERBlock_5(x)
@@ -207,11 +206,10 @@ class CSPBepBackbone(nn.Module):
 
     def forward(self, x):
 
-        outputs = []
         x = self.stem(x)
         x = self.ERBlock_2(x)
         x = self.ERBlock_3(x)
-        outputs.append(x)
+        outputs = [x]
         x = self.ERBlock_4(x)
         outputs.append(x)
         x = self.ERBlock_5(x)

@@ -44,16 +44,15 @@ def parse_args():
     parser.add_argument('--letterbox_return_int', type=bool, default=True, help='return int offset for letterbox')
     parser.add_argument('--scale_exact', type=bool, default=True, help='use exact scale size to scale coords')
     parser.add_argument('--force_no_pad', type=bool, default=True, help='for no extra pad in letterbox')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def check_args(args):
     """Check and make sure command-line arguments are valid."""
     if not os.path.isdir(args.imgs_dir):
-        sys.exit('%s is not a valid directory' % args.imgs_dir)
+        sys.exit(f'{args.imgs_dir} is not a valid directory')
     if not os.path.exists(args.visual_dir):
-        print("Directory {} does not exist, create it".format(args.visual_dir))
+        print(f"Directory {args.visual_dir} does not exist, create it")
         os.makedirs(args.visual_dir)
 
 
@@ -106,7 +105,7 @@ def generate_results(processor, imgs_dir, visual_dir, jpgs, conf_thres, iou_thre
                 cv2.rectangle(image, (int(x), int(y)), (int(x + w), int(y + h)), (255, 0, 0), 1)
 
             # print("saving to {}".format(os.path.join(visual_dir, image_names[j])))
-            cv2.imwrite("{}".format(os.path.join(visual_dir, image_names[j])), image)
+            cv2.imwrite(f"{os.path.join(visual_dir, image_names[j])}", image)
 
 def main():
     args = parse_args()

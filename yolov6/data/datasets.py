@@ -77,7 +77,7 @@ class TrainValDataset(Dataset):
             self.sort_files_shapes()
         t2 = time.time()
         if self.main_process:
-            LOGGER.info(f"%.1fs for dataset initialization." % (t2 - t1))
+            LOGGER.info("%.1fs for dataset initialization." % (t2 - t1))
 
     def __len__(self):
         """Get the length of dataset"""
@@ -219,8 +219,9 @@ class TrainValDataset(Dataset):
 
         assert osp.exists(img_dir), f"{img_dir} is an invalid directory path!"
         valid_img_record = osp.join(
-            osp.dirname(img_dir), "." + osp.basename(img_dir) + ".json"
+            osp.dirname(img_dir), f".{osp.basename(img_dir)}.json"
         )
+
         NUM_THREADS = min(8, os.cpu_count())
 
         img_paths = glob.glob(osp.join(img_dir, "**/*"), recursive=True)
@@ -281,7 +282,7 @@ class TrainValDataset(Dataset):
             for rootdir, dirs, files in os.walk(label_dir):
                 for subdir in dirs:
                     sub_dirs.append(subdir)
-            assert "labels" in sub_dirs, f"Could not find a labels directory!"
+            assert "labels" in sub_dirs, "Could not find a labels directory!"
 
 
         # Look for labels in the save relative dir that the images are in
@@ -353,9 +354,7 @@ class TrainValDataset(Dataset):
                 save_dir = osp.join(osp.dirname(osp.dirname(img_dir)), "annotations")
                 if not osp.exists(save_dir):
                     os.mkdir(save_dir)
-                save_path = osp.join(
-                    save_dir, "instances_" + osp.basename(img_dir) + ".json"
-                )
+                save_path = osp.join(save_dir, f"instances_{osp.basename(img_dir)}.json")
                 TrainValDataset.generate_coco_format_labels(
                     img_info, self.class_names, save_path
                 )
@@ -381,9 +380,7 @@ class TrainValDataset(Dataset):
 
     def get_mosaic(self, index):
         """Gets images and labels after mosaic augments"""
-        indices = [index] + random.choices(
-            range(0, len(self.img_paths)), k=3
-        )  # 3 additional image indices
+        indices = ([index] + random.choices(range(len(self.img_paths)), k=3))
         random.shuffle(indices)
         imgs, hs, ws, labels = [], [], [], []
         for index in indices:
@@ -540,9 +537,8 @@ class TrainValDataset(Dataset):
             )
 
         ann_id = 0
-        LOGGER.info(f"Convert to COCO format")
-        for i, (img_path, info) in enumerate(tqdm(img_info.items())):
-            labels = info["labels"] if info["labels"] else []
+        LOGGER.info("Convert to COCO format")
+        for img_path, info in tqdm(img_info.items()):
             img_id = osp.splitext(osp.basename(img_path))[0]
             img_w, img_h = info["shape"]
             dataset["images"].append(
@@ -553,7 +549,7 @@ class TrainValDataset(Dataset):
                     "height": img_h,
                 }
             )
-            if labels:
+            if labels := info["labels"] or []:
                 for label in labels:
                     c, x, y, w, h = label[:5]
                     # convert x,y,w,h to x1,y1,x2,y2
@@ -613,8 +609,7 @@ class LoadData:
             self.cap = None
     @staticmethod
     def checkext(path):
-        file_type = 'image' if path.split('.')[-1].lower() in IMG_FORMATS else 'video'
-        return file_type
+        return 'image' if path.split('.')[-1].lower() in IMG_FORMATS else 'video'
     def __iter__(self):
         self.count = 0
         return self

@@ -55,16 +55,15 @@ def parse_args():
     parser.add_argument('--force_no_pad', type=bool, default=True, help='for no extra pad in letterbox')
     parser.add_argument('-v', '--visualize', action="store_true", default=False, help='visualize demo')
     parser.add_argument('--num_imgs_to_visualize', type=int, default=10, help='number of images to visualize')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def check_args(args):
     """Check and make sure command-line arguments are valid."""
     if not os.path.isdir(args.imgs_dir):
-        sys.exit('%s is not a valid directory' % args.imgs_dir)
+        sys.exit(f'{args.imgs_dir} is not a valid directory')
     if not os.path.isfile(args.annotations):
-        sys.exit('%s is not a valid file' % args.annotations)
+        sys.exit(f'{args.annotations} is not a valid file')
 
 
 def generate_results(processor, imgs_dir, jpgs, results_file, conf_thres, iou_thres, non_coco,
@@ -102,7 +101,7 @@ def generate_results(processor, imgs_dir, jpgs, results_file, conf_thres, iou_th
             image_ids.append(int(jpgs[idx].split('.')[0].split('_')[-1]))
             idx += 1
         output = processor.inference(imgs)
-        
+
         for j in range(len(shapes)):
             pred = processor.post_process(output[j].unsqueeze(0), shapes[j], conf_thres=conf_thres, iou_thres=iou_thres)
             if visualize and num_visualized < num_imgs_to_visualize:
@@ -113,10 +112,17 @@ def generate_results(processor, imgs_dir, jpgs, results_file, conf_thres, iou_th
                 w = float(p[2] - p[0])
                 h = float(p[3] - p[1])
                 s = float(p[4])
-                results.append({'image_id': image_ids[j],
-                                'category_id': coco91class[int(p[5])] if not non_coco else int(p[5]),
-                                'bbox': [round(x, 3) for x in [x, y, w, h]],
-                                'score': round(s, 5)})
+                results.append(
+                    {
+                        'image_id': image_ids[j],
+                        'category_id': int(p[5])
+                        if non_coco
+                        else coco91class[int(p[5])],
+                        'bbox': [round(x, 3) for x in [x, y, w, h]],
+                        'score': round(s, 5),
+                    }
+                )
+
 
                 if visualize and num_visualized < num_imgs_to_visualize:
                     cv2.rectangle(image, (int(x), int(y)), (int(x+w), int(y+h)), (255, 0, 0), 1)
@@ -141,10 +147,10 @@ def main():
 
         with open(args.model, 'wb') as f:
             f.write(engine.serialize())
-        print('Serialized the TensorRT engine to file: %s' % args.model)
+        print(f'Serialized the TensorRT engine to file: {args.model}')
 
     model_prefix = args.model.replace('.trt', '').split('/')[-1]
-    results_file = 'results_{}.json'.format(model_prefix)
+    results_file = f'results_{model_prefix}.json'
 
     # setup processor
     processor = Processor(model=args.model, scale_exact=args.scale_exact, return_int=args.letterbox_return_int, force_no_pad=args.force_no_pad)

@@ -60,8 +60,7 @@ def run(data,
                 None, device, False, save_dir)
 
     dataloader,pred_result = val.eval_trt(weights)
-    eval_result = val.eval_model(pred_result, dummy_model, dataloader, task)
-    return eval_result
+    return val.eval_model(pred_result, dummy_model, dataloader, task)
 
 
 def main(args):

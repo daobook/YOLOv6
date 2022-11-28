@@ -123,9 +123,7 @@ class RepPANNeck(nn.Module):
         p_concat_layer2 = torch.cat([down_feat0, fpn_out0], 1)
         pan_out0 = self.Rep_n4(p_concat_layer2)
 
-        outputs = [pan_out2, pan_out1, pan_out0]
-
-        return outputs
+        return [pan_out2, pan_out1, pan_out0]
 
 
 class CSPRepPANNeck(nn.Module):
@@ -237,6 +235,4 @@ class CSPRepPANNeck(nn.Module):
         p_concat_layer2 = torch.cat([down_feat0, fpn_out0], 1)
         pan_out0 = self.Rep_n4(p_concat_layer2)
 
-        outputs = [pan_out2, pan_out1, pan_out0]
-
-        return outputs
+        return [pan_out2, pan_out1, pan_out0]

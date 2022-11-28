@@ -73,8 +73,8 @@ class Detect(nn.Module):
                                                    requires_grad=False)
 
     def forward(self, x):
+        cls_score_list = []
         if self.training:
-            cls_score_list = []
             reg_distri_list = []
 
             for i in range(self.nl):
@@ -95,7 +95,6 @@ class Detect(nn.Module):
 
             return x, cls_score_list, reg_distri_list
         else:
-            cls_score_list = []
             reg_dist_list = []
             anchor_points, stride_tensor = generate_anchors(
                 x, self.stride, self.grid_cell_size, self.grid_cell_offset, device=x[0].device, is_eval=True)
@@ -135,105 +134,104 @@ class Detect(nn.Module):
 
 
 def build_effidehead_layer(channels_list, num_anchors, num_classes, reg_max=16):
-    head_layers = nn.Sequential(
+    return nn.Sequential(
         # stem0
         Conv(
             in_channels=channels_list[6],
             out_channels=channels_list[6],
             kernel_size=1,
-            stride=1
+            stride=1,
         ),
         # cls_conv0
         Conv(
             in_channels=channels_list[6],
             out_channels=channels_list[6],
             kernel_size=3,
-            stride=1
+            stride=1,
         ),
         # reg_conv0
         Conv(
             in_channels=channels_list[6],
             out_channels=channels_list[6],
             kernel_size=3,
-            stride=1
+            stride=1,
         ),
         # cls_pred0
         nn.Conv2d(
             in_channels=channels_list[6],
             out_channels=num_classes * num_anchors,
-            kernel_size=1
+            kernel_size=1,
         ),
         # reg_pred0
         nn.Conv2d(
             in_channels=channels_list[6],
             out_channels=4 * (reg_max + num_anchors),
-            kernel_size=1
+            kernel_size=1,
         ),
         # stem1
         Conv(
             in_channels=channels_list[8],
             out_channels=channels_list[8],
             kernel_size=1,
-            stride=1
+            stride=1,
         ),
         # cls_conv1
         Conv(
             in_channels=channels_list[8],
             out_channels=channels_list[8],
             kernel_size=3,
-            stride=1
+            stride=1,
         ),
         # reg_conv1
         Conv(
             in_channels=channels_list[8],
             out_channels=channels_list[8],
             kernel_size=3,
-            stride=1
+            stride=1,
         ),
         # cls_pred1
         nn.Conv2d(
             in_channels=channels_list[8],
             out_channels=num_classes * num_anchors,
-            kernel_size=1
+            kernel_size=1,
         ),
         # reg_pred1
         nn.Conv2d(
             in_channels=channels_list[8],
             out_channels=4 * (reg_max + num_anchors),
-            kernel_size=1
+            kernel_size=1,
         ),
         # stem2
         Conv(
             in_channels=channels_list[10],
             out_channels=channels_list[10],
             kernel_size=1,
-            stride=1
+            stride=1,
         ),
         # cls_conv2
         Conv(
             in_channels=channels_list[10],
             out_channels=channels_list[10],
             kernel_size=3,
-            stride=1
+            stride=1,
         ),
         # reg_conv2
         Conv(
             in_channels=channels_list[10],
             out_channels=channels_list[10],
             kernel_size=3,
-            stride=1
+            stride=1,
         ),
         # cls_pred2
         nn.Conv2d(
             in_channels=channels_list[10],
             out_channels=num_classes * num_anchors,
-            kernel_size=1
+            kernel_size=1,
         ),
         # reg_pred2
         nn.Conv2d(
             in_channels=channels_list[10],
             out_channels=4 * (reg_max + num_anchors),
-            kernel_size=1
-        )
+            kernel_size=1,
+        ),
     )
-    return head_layers
